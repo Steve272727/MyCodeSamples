@@ -1,15 +1,16 @@
 #!/bin/bash
 
 #A sample bash script using OpenSSL to decrypt an AES256/CBC key that has been encrypted using RSA/OAEPSHA256
-#The RSA used an X509 certificate public key. This script will use the matching secrete private RSA key for the RSA decryption.
-#The script will check the RSA key matches the X509 certificate before decrypting
-#The decrypted AES256 bit key is converted from binary to hexencoding then the IV and AES KEY extracted
-#The script will loop through all encrypted files named *.xml.bin, decrtypt each to *.xml then delete the encrypted file
+#The RSA encryption used a public key from an X509 certificate. This script will use the matching secrete private RSA key for the RSA decryption.
+#The script will check the RSA private key matches the X509 certificate before decrypting
+#The decrypted AES256 bit key is converted from binary to a hexencoded text file so the IV and AES KEY can be extracted in the format needed by OpenSSL
+#The script will loop through all encrypted files named *.xml.bin in an input folder, decrypt each to *.xml then delete the encrypted file
 #Note: tested in Kali Linux with OpenSSL 3.0.8 7 Feb 2023 (Library: OpenSSL 3.0.8 7 Feb 2023)
 
 #Script folders:
 #./key - the X509 certificate and matching private key are placed in here
 #./input - encrypted files with encrypted AES key are placed in here for decryption
+#./decrypter.sh
 
 certificate=./key/Certificate.crt
 rsaprivatekey=./key/Private.key
@@ -57,19 +58,19 @@ echo Extracing AES IV and Key from $decryptedKeyHEX
 iv=$(head -c 32 $decryptedKeyHEX)
 aes_key=$(tail -c +33 $decryptedKeyHEX)
 
-#Can output these for debugging
+#Can output these just for debugging
 #echo AES IV=$iv
 #echo AES KEY=$aes_key
 
 #Decrypt all .xml.bin files in the input folder using AES IV and KEY
-echo Decrypting encrypted XML files *.xml.bin in folder $inputFolder
 
+echo Decrypting encrypted XML files *.xml.bin in folder $inputFolder
 for encryptedFile in $inputFolder/*.xml.bin; do
 
 	#decrypted file, strip the .bin extension
 	decryptedFile="${encryptedFile%.xml.bin}.xml"
 
-	#AES decryption
+	#Decrypt the file with AES/CBC
 	openssl enc -d -aes-256-cbc -in $encryptedFile -out $decryptedFile -K $aes_key -iv $iv
 	echo Decrypted $encryptedFile to $decryptedFile
 
