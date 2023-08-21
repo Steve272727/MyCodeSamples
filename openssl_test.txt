@@ -1,0 +1,31 @@
+OpenSSL path: "C:\Program Files\openssl-1.1\x64\bin\openssl.exe"
+Checking the X509 certificate .\key\Certificate.pem matches the RSA private key .\key\Private.key
+SUCCESS: Certificate and private key match!
+Decrypting AES export key using RSA private key
+encryptedKey=.\input\ExportKey.bin
+decryptedKey=.\input\ExportKeyDecrypted.bin
+SUCCESS: AES key was decrypted to binary file .\input\ExportKeyDecrypted.bin
+Converting binary file .\input\ExportKeyDecrypted.bin to HEX encoded file .\input\ExportKeyDecryptedHEX.txt
+Running CertUtil to hex encode the binary key file
+CertUtil: -encodehex command completed successfully.
+Decrypting encrypted XML files *.xml.bin in folder .\input
+Decrypted ".\input\CASE0046206.xml.bin" to "C:\Data\Code\decryption\openSSLDecrypter\input\CASE0046206.xml"
+Decrypted ".\input\Inventory.xml.bin" to "C:\Data\Code\decryption\openSSLDecrypter\input\Inventory.xml"
+Cleaning up
+done
+
+OpenSSL path: "C:\Program Files\openssl-3\x64\bin\openssl.exe"
+Checking the X509 certificate .\key\Certificate.pem matches the RSA private key .\key\Private.key
+SUCCESS: Certificate and private key match!
+Decrypting AES export key using RSA private key
+encryptedKey=.\input\ExportKey.bin
+decryptedKey=.\input\ExportKeyDecrypted.bin
+SUCCESS: AES key was decrypted to binary file .\input\ExportKeyDecrypted.bin
+Converting binary file .\input\ExportKeyDecrypted.bin to HEX encoded file .\input\ExportKeyDecryptedHEX.txt
+Running CertUtil to hex encode the binary key file
+CertUtil: -encodehex command completed successfully.
+Decrypting encrypted XML files *.xml.bin in folder .\input
+Decrypted ".\input\CASE0046206.xml.bin" to "C:\Data\Code\decryption\openSSLDecrypter\input\CASE0046206.xml"
+Decrypted ".\input\Inventory.xml.bin" to "C:\Data\Code\decryption\openSSLDecrypter\input\Inventory.xml"
+Cleaning up
+done
