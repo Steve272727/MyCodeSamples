@@ -1,35 +1,49 @@
 echo off
 
-REM A sample bash script using OpenSSL to decrypt an AES256/CBC key that has been encrypted using RSA/OAEPSHA256
+REM A sample bash script using OpenSSL to decrypt an AES256/CBC key that has been encrypted using RSA/OAEPSHA256 with MGF1PADDING.
 REM The RSA encryption used a public key from an X509 certificate. This script will use the matching secret private RSA key for the RSA decryption.
-REM The script will check the RSA private key matches the X509 certificate before decrypting
+REM The script will check the RSA private key matches the X509 certificate before decrypting. The decrypted key file size will also be checked.
 REM The decrypted AES256 bit key is converted from binary to a hexencoded text file so the IV and AES KEY can be extracted in the format needed by OpenSSL
 REM The script will loop through all encrypted files named *.xml.bin in an input folder, decrypt each to *.xml then delete the encrypted file
-REM Note: Tested in Windows 10 with OpenSSL 3.1.2 downloaded from https://kb.firedaemon.com/support/solutions/articles/4000121705#Download-OpenSSL
+REM Note: Tested in Windows 10 with:
+REM OpenSSL 1.1.1 and 3.1.2 downloaded from https://kb.firedaemon.com/support/solutions/articles/4000121705#Download-OpenSSL
 
 REM Script folders:
-REM ./key - the X509 certificate and matching private key are placed in here
+REM ./key - the X509 certificate and matching private key in PEM format are placed in here
 REM ./input - encrypted files with encrypted AES key are placed in here for decryption
 REM ./decrypter.bat
 
 cls
 
 REM Set path to open ssl executable
-set open_ssl="C:\Program Files\openssl-3\x64\bin\openssl.exe"
-echo OpenSSL path: %open_ssl%
 
-set certificate=.\key\Certificate.crt
+REM noticed that it's not a PEM certificate ?
+REM set open_ssl="C:\Program Files\openssl-1.1\x64\bin\openssl.exe"
+set open_ssl="C:\Program Files\openssl-3\x64\bin\openssl.exe"
+
+echo OpenSSL path: %open_ssl%
+%open_ssl% version
+
+REM set certificate=.\key\Certificate.crt
+set certificate=.\key\Certificate.pem
+set certFormat=PEM
+REM set certFormat=DER
 set rsaprivatekey=.\key\Private.key
+set rsaKeyFormat=PEM
 REM set rsaprivatekey=.\key\Wrong.key
 set inputFolder=.\input
+
+REM echo generating PEM cert
+REM %open_ssl% x509 -inform DER -in .\Certificate.crt -out .\Certificate.pem
+REM goto done
 
 echo Checking the X509 certificate %certificate% matches the RSA private key %rsaprivatekey%
 set certModulusFile=.\certModulus.txt
 set keyModulusFile=.\keyModulus.txt
 
 REM output the cert and key modulus to temp files
-%open_ssl% x509 -noout -modulus -in %certificate% | %open_ssl% md5 > %certModulusFile%
-%open_ssl% rsa -noout -modulus -in %rsaprivatekey% | %open_ssl% md5 > %keyModulusFile%
+%open_ssl% x509 -noout -modulus -in %certificate% -inform %certFormat% | %open_ssl% md5 > %certModulusFile%
+%open_ssl% rsa -noout -modulus -in %rsaprivatekey% -inform %rsaKeyFormat% | %open_ssl% md5 > %keyModulusFile%
 
 REM read cert and key modules into script variables
 set /p certModulus=<%certModulusFile%
@@ -65,14 +79,28 @@ IF EXIST %decryptedKey% (
 echo encryptedKey=%encryptedKey%
 echo decryptedKey=%decryptedKey%
 
-%open_ssl% pkeyutl -decrypt -inkey %rsaprivatekey% -keyform PEM -in %encryptedKey% -out %decryptedKey% -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256
+REM Decrypt using OEAPSHA256/MGF1SHA1
+:%open_ssl% pkeyutl -decrypt -inkey %rsaprivatekey% -keyform %rsaKeyFormat% -in %encryptedKey% -out %decryptedKey% -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 -pkeyopt rsa_mgf1_md:sha1
+REM Decrypt using OEAPSHA256/MGF1SHA256
+%open_ssl% pkeyutl -decrypt -inkey %rsaprivatekey% -keyform %rsaKeyFormat% -in %encryptedKey% -out %decryptedKey% -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 -pkeyopt rsa_mgf1_md:sha256
 
 REM Check AES key was decrypted successfully
 IF NOT EXIST %decryptedKey% (
 	echo ERROR: decrypted AES key not found
     goto done	
 ) ELSE (
-	echo SUCCESS: AES key was decrypted to binary file %decryptedKey%
+	echo AES key was decrypted to binary file %decryptedKey%
+)
+
+REM The AES Key should be 48bytes, check the file size is at least 16 bytes. Exit if too small.
+set maxbytesize=16
+FOR /F "usebackq" %%A IN ('%decryptedKey%') DO set size=%%~zA
+
+if %size% LSS %maxbytesize% (
+	echo ERROR: AES key size is invalid: %size% bytes
+	goto done
+) ELSE (
+	echo SUCCESS: AES key size is: %size% bytes
 )
 
 REM Convert binary decrypted key to HEX encoded text file
@@ -115,7 +143,7 @@ for %%F in ("%inputFolder%\*.xml.bin") do (
 	REM %%~dpnF represents the drive, path, and name of the file from %%F but without the extension. This will remove the .bin
     set "destinationFile=%%~dpnF"
 
-	REM Decrypt the file with AES/CBC	
+	REM Decrypt the file with AES/CBC. Openssl uses PKCS#5 standard block padding by default.	
 	%open_ssl% enc -d -aes-256-cbc -in "!sourceFile!" -out "!destinationFile!" -K %aes_key% -iv %aes_iv%
 	echo Decrypted "!sourceFile!" to "!destinationFile!"
 )
