@@ -40,3 +40,42 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>("Validation failed", HttpStatus.BAD_REQUEST);
     }
 }
+
+
+Sample response with details of bad fields....
+
+{
+  "timestamp": "2023-11-21T12:34:56.789Z",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Validation failed for object='person'. Error count: 1",
+  "errors": [
+    {
+      "codes": [
+        "Size.person.surname",
+        "Size.surname",
+        "Size.java.lang.String",
+        "Size"
+      ],
+      "arguments": [
+        {
+          "codes": [
+            "50",
+            "surname"
+          ],
+          "arguments": null,
+          "defaultMessage": "50",
+          "code": "50"
+        }
+      ],
+      "defaultMessage": "Surname must not be greater than 50 characters",
+      "objectName": "person",
+      "field": "surname",
+      "rejectedValue": "ThisIsAVeryLongSurnameThatExceedsFiftyCharacters",
+      "bindingFailure": false,
+      "code": "Size"
+    }
+  ],
+  "path": "/api/persons"
+}
+
