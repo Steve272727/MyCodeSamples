@@ -79,3 +79,87 @@ Sample response with details of bad fields....
   "path": "/api/persons"
 }
 
+
+//
+
+import javax.validation.constraints.Size;
+
+public class Person {
+
+    // ... other annotations
+
+    @NotBlank(message = "Surname is required")
+    @Size(max = 50, message = "Surname must not be greater than 50 characters")
+    private String surname;
+
+    // ... getters and setters
+}
+
+import org.springframework.validation.annotation.Validated;
+
+@RestController
+@RequestMapping("/api/persons")
+@Validated
+public class PersonController {
+
+    // ... your controller methods
+}
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
+
+@ControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ResponseEntity<String> handleValidationException(MethodArgumentNotValidException ex) {
+        // Handle validation errors and build a response
+        // ...
+
+        return new ResponseEntity<>("Validation failed", HttpStatus.BAD_REQUEST);
+    }
+}
+
+
+Sample response with details of bad fields....
+
+{
+  "timestamp": "2023-11-21T12:34:56.789Z",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Validation failed for object='person'. Error count: 1",
+  "errors": [
+    {
+      "codes": [
+        "Size.person.surname",
+        "Size.surname",
+        "Size.java.lang.String",
+        "Size"
+      ],
+      "arguments": [
+        {
+          "codes": [
+            "50",
+            "surname"
+          ],
+          "arguments": null,
+          "defaultMessage": "50",
+          "code": "50"
+        }
+      ],
+      "defaultMessage": "Surname must not be greater than 50 characters",
+      "objectName": "person",
+      "field": "surname",
+      "rejectedValue": "ThisIsAVeryLongSurnameThatExceedsFiftyCharacters",
+      "bindingFailure": false,
+      "code": "Size"
+    }
+  ],
+  "path": "/api/persons"
+}
+
