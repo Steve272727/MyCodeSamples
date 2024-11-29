@@ -1,0 +1,206 @@
+Here's how you can convert the provided Hibernate 5 Criteria query into a JPA Criteria query for use with Hibernate 6:
+
+Key Differences to Note:
+JPA Criteria API replaces Restrictions, Projections, DetachedCriteria, and Subqueries.
+JPA Criteria uses javax.persistence.criteria and builds type-safe queries.
+The Session now exposes a CriteriaBuilder and CriteriaQuery.
+
+
+import javax.persistence.criteria.*;
+import javax.persistence.EntityManager;
+import java.util.Date;
+
+private CriteriaQuery<PersonRecord> getRecords(EntityManager entityManager, SystemUser user) {
+    Date now = new Date();
+    Date currentDate = DateUtil.roundBackCalendar(now).getTime();
+
+    CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+    CriteriaQuery<PersonRecord> query = cb.createQuery(PersonRecord.class);
+    Root<PersonRecord> pc = query.from(PersonRecord.class);
+
+    // Subquery for expired records
+    Subquery<Long> expiredRecs = query.subquery(Long.class);
+    Root<Expired> exp = expiredRecs.from(Expired.class);
+    expiredRecs.select(exp.get("personRecord").get("key"))
+            .where(
+                cb.equal(exp.get("type"), RecordStatusType.STATUS1.getDescription()),
+                cb.equal(exp.get("personRecord").get("key"), pc.get("key")),
+                cb.or(
+                    cb.isNull(exp.get("endDate")),
+                    cb.greaterThanOrEqualTo(exp.get("endDate"), currentDate)
+                )
+            );
+
+    // Subquery for user registration
+    Subquery<Long> userRegistrationCriteria = query.subquery(Long.class);
+    Root<UserRegistration> ur = userRegistrationCriteria.from(UserRegistration.class);
+    userRegistrationCriteria.select(ur.get("personRecord").get("key"))
+            .where(cb.isNotNull(ur.get("startDate")));
+
+    // Main query filters
+    Predicate statusFilter = cb.equal(pc.get("statusType"), RecordStatusType.STATUS2.getKey());
+    Predicate notInExpiredRecs = cb.not(pc.get("key").in(expiredRecs));
+    Predicate notInUserRegistration = cb.not(pc.get("key").in(userRegistrationCriteria));
+
+    Predicate mainFilter = cb.and(statusFilter, notInExpiredRecs, notInUserRegistration);
+
+    if (user.isAdmin()) {
+        Subquery<Long> sharedOrganisation = query.subquery(Long.class);
+        Root<SharedOrganisation> so = sharedOrganisation.from(SharedOrganisation.class);
+        sharedOrganisation.select(so.get("personRecord").get("key"))
+                .where(
+                    cb.isNull(so.get("endDate")),
+                    cb.equal(so.get("organisation").get("key"), user.getJurisdiction().getKey())
+                );
+
+        Predicate adminFilter = cb.or(
+            cb.equal(pc.get("owningOrganisation").get("key"), user.getJurisdiction().getKey()),
+            pc.get("key").in(sharedOrganisation)
+        );
+        mainFilter = cb.and(mainFilter, adminFilter);
+    } else if (user.isManager()) {
+        // Subquery for AssignedLocalManager
+        Subquery<Long> manager1Criteria = query.subquery(Long.class);
+        Root<AssignedLocalManager> alm = manager1Criteria.from(AssignedLocalManager.class);
+        manager1Criteria.select(alm.get("personRecord").get("key"))
+                .where(
+                    cb.isNull(alm.get("endDate")),
+                    cb.equal(alm.get("localManager"), user.getUserId())
+                );
+
+        // Subquery for AssignedCaseManager
+        Subquery<Long> manager2Criteria = query.subquery(Long.class);
+        Root<AssignedCaseManager> acm = manager2Criteria.from(AssignedCaseManager.class);
+        manager2Criteria.select(acm.get("personRecord").get("key"))
+                .where(
+                    cb.isNull(acm.get("endDate")),
+                    cb.equal(acm.get("caseManager"), user.getUserId())
+                );
+
+        Predicate managerFilter = cb.or(
+            pc.get("key").in(manager1Criteria),
+            pc.get("key").in(manager2Criteria)
+        );
+        mainFilter = cb.and(mainFilter, managerFilter);
+    }
+
+    query.select(pc).where(mainFilter);
+    return query;
+}
+
+
+Here's how you can convert the provided Hibernate 5 Criteria query into a JPA Criteria query for use with Hibernate 6:
+
+Key Differences to Note:
+JPA Criteria API replaces Restrictions, Projections, DetachedCriteria, and Subqueries.
+JPA Criteria uses javax.persistence.criteria and builds type-safe queries.
+The Session now exposes a CriteriaBuilder and CriteriaQuery.
+
+List<PersonRecord> results = entityManager.createQuery(getRecords(entityManager, user)).getResultList();
+
+*****************************
+Get counts - option 1
+*****************************
+
+To modify the JPA Criteria query to count the number of PersonRecord entries instead of returning a list, you can use the CriteriaBuilder.count() method. Here's how you can do it:
+
+Code to Modify the Query to Perform a Count:
+
+import javax.persistence.EntityManager;
+import javax.persistence.TypedQuery;
+import javax.persistence.criteria.*;
+
+public long getPersonRecordCount(EntityManager entityManager, SystemUser user) {
+    // Get the base query
+    CriteriaQuery<PersonRecord> personQuery = getRecords(entityManager, user);
+
+    // Create a new query for count
+    CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+    CriteriaQuery<Long> countQuery = cb.createQuery(Long.class);
+
+    // Copy the root from the original query
+    Root<PersonRecord> pc = personQuery.getRoots().iterator().next();
+    countQuery.select(cb.count(pc));
+
+    // Apply the same predicates as the original query
+    countQuery.where(personQuery.getRestriction());
+
+    // Execute the count query
+    TypedQuery<Long> query = entityManager.createQuery(countQuery);
+    return query.getSingleResult();
+}
+
+Explanation:
+Reusing the Root Entity: The Root from the original query is reused in the count query.
+cb.count(): Generates the COUNT(*) clause.
+Copying Predicates: The where conditions from the original query are applied to the count query using personQuery.getRestriction().
+Return Single Result: Since this is a count query, it returns a single result, which is the total count of matching PersonRecord entities.
+
+Execution:
+You can call this method to get the count of PersonRecord entities for a given SystemUser:
+
+java
+Copy code
+SystemUser user = ...; // Initialize the user
+EntityManager entityManager = ...; // Obtain the EntityManager
+
+long recordCount = getPersonRecordCount(entityManager, user);
+System.out.println("Number of matching PersonRecords: " + recordCount);
+
+This approach ensures that the count query is consistent with the filtering logic defined in the original query, while only returning the count of records.
+
+
+*****************************
+Get Counts - Option 2
+*****************************
+
+Response 2
+Certainly! To modify the query to return a count instead of a list of PersonRecord entities, you can leverage JPA's CriteriaBuilder to create a count projection. Here's how to do it:
+
+Code to Modify the Query for Count:
+java
+Copy code
+import javax.persistence.EntityManager;
+import javax.persistence.criteria.*;
+
+public long getRecordCount(EntityManager entityManager, SystemUser user) {
+    // Reuse the existing method to create the base query
+    CriteriaQuery<PersonRecord> baseQuery = getRecords(entityManager, user);
+
+    // Create a new query for count
+    CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+    CriteriaQuery<Long> countQuery = cb.createQuery(Long.class);
+
+    // Reuse the root and predicates from the base query
+    Root<PersonRecord> pc = countQuery.from(baseQuery.getResultType());
+    countQuery.select(cb.count(pc));
+    countQuery.where(baseQuery.getRestriction());
+
+    // Execute the count query
+    return entityManager.createQuery(countQuery).getSingleResult();
+}
+
+Explanation:
+Reusing the Base Query Logic:
+
+The getRecords method builds the base query with all necessary filters.
+This ensures the count query aligns with the same filtering logic as the original query.
+Switching to Count:
+
+Use CriteriaBuilder.count to create a count projection.
+Reuse the Root and Predicate objects from the original query to maintain consistency.
+Executing the Query:
+
+The query will return a single result: the total count of PersonRecord entities matching the criteria.
+
+Example Usage:
+java
+Copy code
+EntityManager entityManager = ...; // Obtain the EntityManager
+SystemUser user = ...; // Prepare the SystemUser object
+
+long personRecordCount = getRecordCount(entityManager, user);
+
+System.out.println("Total Person Records: " + personRecordCount);
+
+This approach cleanly builds upon your existing logic, ensuring both list and count queries remain consistent. Let me know if you need further assistance!
