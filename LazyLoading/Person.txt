@@ -1,0 +1,480 @@
+*******************************
+ORIGINAL
+*******************************
+
+package com.example.core.data.entity;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+
+//OLD
+//import javax.persistence.Entity;
+//import javax.persistence.GeneratedValue;
+//import javax.persistence.GenerationType;
+//import javax.persistence.Id;
+
+//New JPA 3.1
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Table;
+//import java.util.Date;
+
+@Entity
+@Table(name="t_person")
+
+//See:
+//https://www.baeldung.com/the-persistence-layer-with-spring-data-jpa
+//https://www.baeldung.com/jpa-entities
+public class Person {
+
+	@Id
+    //@GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "person_seq")
+    @SequenceGenerator(name = "person_seq", sequenceName = "seq_t_person", allocationSize = 1)    
+    @Column(name="id", nullable=false)
+    private Long id;
+    
+    //Note: the "person" is the name of the field on the person photos mapping back to Person
+    @OneToMany(mappedBy = "person", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PersonPhoto> personPhotos;
+
+	// Constructors...
+    public Person() {
+    	//init
+    	this.personPhotos= new ArrayList<PersonPhoto>(); 
+	}    
+
+    // Getter and setter for personPhotos...
+    public void addPersonPhoto(PersonPhoto personPhoto) {
+        personPhotos.add(personPhoto);
+        personPhoto.setPerson(this);
+    }
+
+    public void removePersonPhoto(PersonPhoto personPhoto) {
+        personPhotos.remove(personPhoto);
+        personPhoto.setPerson(null);
+    }        
+    
+    public List<PersonPhoto> getPersonPhotos() {
+		return personPhotos;
+	}
+
+	public void setPersonPhotos(List<PersonPhoto> personPhotos) {
+		this.personPhotos = personPhotos;
+	}
+    
+    public Long getId() {
+		return id;
+	}
+
+	public String getFirstName() {
+		return firstName;
+	}
+
+	public String getLastName() {
+		return lastName;
+	}
+
+	public String getGender() {
+		return gender;
+	}
+
+	@Column(name="first_name")
+    private String firstName;
+
+    @Column(name="last_name")
+    private String lastName;
+
+    @Column(name="date_of_birth")    
+    private Date dateOfBirth;
+
+    @Column(name="gender")
+    private String gender;
+
+    //Setters needed for DTO
+    public void setId(Long id) {
+    	this.id = id;
+	}
+
+	public void setFirstName(String firstName) {
+		this.firstName = firstName;
+	}
+
+	public void setLastName(String lastName) {
+		this.lastName = lastName;
+	}
+
+	public void setGender(String gender) {
+		this.gender = gender;
+	}
+
+	public Date getDateOfBirth() {
+		return dateOfBirth;
+	}
+
+	public void setDateOfBirth(Date dateOfBirth) {
+		this.dateOfBirth = dateOfBirth;
+	}
+
+}
+
+
+*********************************************************
+COMPILED - PLUGIN with enableLazyInitialization only set
+*********************************************************
+
+NOTE: it will  use interceptor for EVERY field. Not sure why ? This might be OK when using entity manager and doing .get() operations.
+The system legacy code is using session.load, we need to maintain that for a while.
+
+package com.example.core.data.entity;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import org.hibernate.bytecode.enhance.spi.EnhancementInfo;
+import org.hibernate.engine.spi.EntityEntry;
+import org.hibernate.engine.spi.ManagedEntity;
+import org.hibernate.engine.spi.PersistentAttributeInterceptable;
+import org.hibernate.engine.spi.PersistentAttributeInterceptor;
+
+@Entity
+@Table(name = "t_person")
+@EnhancementInfo(version = "6.4.0.Final")
+public class Person implements ManagedEntity, PersistentAttributeInterceptable {
+  @Id
+  @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "person_seq")
+  @SequenceGenerator(name = "person_seq", sequenceName = "seq_t_person", allocationSize = 1)
+  @Column(name = "id", nullable = false)
+  Long id;
+  
+  @OneToMany(mappedBy = "person", cascade = {CascadeType.ALL}, orphanRemoval = true)
+  List<PersonPhoto> personPhotos;
+  
+  @Column(name = "first_name")
+  String firstName;
+  
+  @Column(name = "last_name")
+  String lastName;
+  
+  @Column(name = "date_of_birth")
+  Date dateOfBirth;
+  
+  @Column(name = "gender")
+  String gender;
+  
+  @Transient
+  private transient EntityEntry $$_hibernate_entityEntryHolder;
+  
+  @Transient
+  private transient ManagedEntity $$_hibernate_previousManagedEntity;
+  
+  @Transient
+  private transient ManagedEntity $$_hibernate_nextManagedEntity;
+  
+  @Transient
+  private transient PersistentAttributeInterceptor $$_hibernate_attributeInterceptor;
+  
+  public Person() {
+    $$_hibernate_write_personPhotos(new ArrayList());
+  }
+  
+  public void addPersonPhoto(PersonPhoto personPhoto) {
+    $$_hibernate_read_personPhotos().add(personPhoto);
+    personPhoto.setPerson(this);
+  }
+  
+  public void removePersonPhoto(PersonPhoto personPhoto) {
+    $$_hibernate_read_personPhotos().remove(personPhoto);
+    personPhoto.setPerson(null);
+  }
+  
+  public List<PersonPhoto> getPersonPhotos() {
+    return $$_hibernate_read_personPhotos();
+  }
+  
+  public void setPersonPhotos(List<PersonPhoto> personPhotos) {
+    $$_hibernate_write_personPhotos(personPhotos);
+  }
+  
+  public Long getId() {
+    return $$_hibernate_read_id();
+  }
+  
+  public String getFirstName() {
+    return $$_hibernate_read_firstName();
+  }
+  
+  public String getLastName() {
+    return $$_hibernate_read_lastName();
+  }
+  
+  public String getGender() {
+    return $$_hibernate_read_gender();
+  }
+  
+  public void setId(Long id) {
+    $$_hibernate_write_id(id);
+  }
+  
+  public void setFirstName(String firstName) {
+    $$_hibernate_write_firstName(firstName);
+  }
+  
+  public void setLastName(String lastName) {
+    $$_hibernate_write_lastName(lastName);
+  }
+  
+  public void setGender(String gender) {
+    $$_hibernate_write_gender(gender);
+  }
+  
+  public Date getDateOfBirth() {
+    return $$_hibernate_read_dateOfBirth();
+  }
+  
+  public void setDateOfBirth(Date dateOfBirth) {
+    $$_hibernate_write_dateOfBirth(dateOfBirth);
+  }
+  
+  public Object $$_hibernate_getEntityInstance() {
+    return this;
+  }
+  
+  public EntityEntry $$_hibernate_getEntityEntry() {
+    return this.$$_hibernate_entityEntryHolder;
+  }
+  
+  public void $$_hibernate_setEntityEntry(EntityEntry paramEntityEntry) {
+    this.$$_hibernate_entityEntryHolder = paramEntityEntry;
+  }
+  
+  public ManagedEntity $$_hibernate_getPreviousManagedEntity() {
+    return this.$$_hibernate_previousManagedEntity;
+  }
+  
+  public void $$_hibernate_setPreviousManagedEntity(ManagedEntity paramManagedEntity) {
+    this.$$_hibernate_previousManagedEntity = paramManagedEntity;
+  }
+  
+  public ManagedEntity $$_hibernate_getNextManagedEntity() {
+    return this.$$_hibernate_nextManagedEntity;
+  }
+  
+  public void $$_hibernate_setNextManagedEntity(ManagedEntity paramManagedEntity) {
+    this.$$_hibernate_nextManagedEntity = paramManagedEntity;
+  }
+  
+  public PersistentAttributeInterceptor $$_hibernate_getInterceptor() {
+    return this.$$_hibernate_attributeInterceptor;
+  }
+  
+  public void $$_hibernate_setInterceptor(PersistentAttributeInterceptor paramPersistentAttributeInterceptor) {
+    this.$$_hibernate_attributeInterceptor = paramPersistentAttributeInterceptor;
+  }
+  
+  public Long $$_hibernate_read_id() {
+    if ($$_hibernate_getInterceptor() != null)
+      this.id = (Long)$$_hibernate_getInterceptor().readObject(this, "id", this.id); 
+    return this.id;
+  }
+  
+  public void $$_hibernate_write_id(Long paramLong) {
+    if ($$_hibernate_getInterceptor() != null) {
+      this.id = (Long)$$_hibernate_getInterceptor().writeObject(this, "id", this.id, paramLong);
+      return;
+    } 
+    this.id = paramLong;
+  }
+  
+  public List $$_hibernate_read_personPhotos() {
+    if ($$_hibernate_getInterceptor() != null)
+      this.personPhotos = (List<PersonPhoto>)$$_hibernate_getInterceptor().readObject(this, "personPhotos", this.personPhotos); 
+    return this.personPhotos;
+  }
+  
+  public void $$_hibernate_write_personPhotos(List<PersonPhoto> paramList) {
+    if ($$_hibernate_getInterceptor() != null) {
+      this.personPhotos = (List<PersonPhoto>)$$_hibernate_getInterceptor().writeObject(this, "personPhotos", this.personPhotos, paramList);
+      return;
+    } 
+    this.personPhotos = paramList;
+  }
+  
+  public String $$_hibernate_read_firstName() {
+    if ($$_hibernate_getInterceptor() != null)
+      this.firstName = (String)$$_hibernate_getInterceptor().readObject(this, "firstName", this.firstName); 
+    return this.firstName;
+  }
+  
+  public void $$_hibernate_write_firstName(String paramString) {
+    if ($$_hibernate_getInterceptor() != null) {
+      this.firstName = (String)$$_hibernate_getInterceptor().writeObject(this, "firstName", this.firstName, paramString);
+      return;
+    } 
+    this.firstName = paramString;
+  }
+  
+  public String $$_hibernate_read_lastName() {
+    if ($$_hibernate_getInterceptor() != null)
+      this.lastName = (String)$$_hibernate_getInterceptor().readObject(this, "lastName", this.lastName); 
+    return this.lastName;
+  }
+  
+  public void $$_hibernate_write_lastName(String paramString) {
+    if ($$_hibernate_getInterceptor() != null) {
+      this.lastName = (String)$$_hibernate_getInterceptor().writeObject(this, "lastName", this.lastName, paramString);
+      return;
+    } 
+    this.lastName = paramString;
+  }
+  
+  public Date $$_hibernate_read_dateOfBirth() {
+    if ($$_hibernate_getInterceptor() != null)
+      this.dateOfBirth = (Date)$$_hibernate_getInterceptor().readObject(this, "dateOfBirth", this.dateOfBirth); 
+    return this.dateOfBirth;
+  }
+  
+  public void $$_hibernate_write_dateOfBirth(Date paramDate) {
+    if ($$_hibernate_getInterceptor() != null) {
+      this.dateOfBirth = (Date)$$_hibernate_getInterceptor().writeObject(this, "dateOfBirth", this.dateOfBirth, paramDate);
+      return;
+    } 
+    this.dateOfBirth = paramDate;
+  }
+  
+  public String $$_hibernate_read_gender() {
+    if ($$_hibernate_getInterceptor() != null)
+      this.gender = (String)$$_hibernate_getInterceptor().readObject(this, "gender", this.gender); 
+    return this.gender;
+  }
+  
+  public void $$_hibernate_write_gender(String paramString) {
+    if ($$_hibernate_getInterceptor() != null) {
+      this.gender = (String)$$_hibernate_getInterceptor().writeObject(this, "gender", this.gender, paramString);
+      return;
+    } 
+    this.gender = paramString;
+  }
+}
+
+*********************************************************
+COMPILED - PLUGIN disabled
+*********************************************************
+
+Can see here that all the extra code added is simply removed and it's back to normal!!!
+
+package com.example.core.data.entity;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Table;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+@Entity
+@Table(name = "t_person")
+public class Person {
+  @Id
+  @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "person_seq")
+  @SequenceGenerator(name = "person_seq", sequenceName = "seq_t_person", allocationSize = 1)
+  @Column(name = "id", nullable = false)
+  private Long id;
+  
+  @OneToMany(mappedBy = "person", cascade = {CascadeType.ALL}, orphanRemoval = true)
+  private List<PersonPhoto> personPhotos = new ArrayList<>();
+  
+  @Column(name = "first_name")
+  private String firstName;
+  
+  @Column(name = "last_name")
+  private String lastName;
+  
+  @Column(name = "date_of_birth")
+  private Date dateOfBirth;
+  
+  @Column(name = "gender")
+  private String gender;
+  
+  public void addPersonPhoto(PersonPhoto personPhoto) {
+    this.personPhotos.add(personPhoto);
+    personPhoto.setPerson(this);
+  }
+  
+  public void removePersonPhoto(PersonPhoto personPhoto) {
+    this.personPhotos.remove(personPhoto);
+    personPhoto.setPerson(null);
+  }
+  
+  public List<PersonPhoto> getPersonPhotos() {
+    return this.personPhotos;
+  }
+  
+  public void setPersonPhotos(List<PersonPhoto> personPhotos) {
+    this.personPhotos = personPhotos;
+  }
+  
+  public Long getId() {
+    return this.id;
+  }
+  
+  public String getFirstName() {
+    return this.firstName;
+  }
+  
+  public String getLastName() {
+    return this.lastName;
+  }
+  
+  public String getGender() {
+    return this.gender;
+  }
+  
+  public void setId(Long id) {
+    this.id = id;
+  }
+  
+  public void setFirstName(String firstName) {
+    this.firstName = firstName;
+  }
+  
+  public void setLastName(String lastName) {
+    this.lastName = lastName;
+  }
+  
+  public void setGender(String gender) {
+    this.gender = gender;
+  }
+  
+  public Date getDateOfBirth() {
+    return this.dateOfBirth;
+  }
+  
+  public void setDateOfBirth(Date dateOfBirth) {
+    this.dateOfBirth = dateOfBirth;
+  }
+}
