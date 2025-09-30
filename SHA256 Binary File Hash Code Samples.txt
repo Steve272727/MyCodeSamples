@@ -1,0 +1,150 @@
+
+
+Use Cert Util to calculate the SHA256 hash.
+
+certutil -hashfile "C:\path\to\your\file.bin" SHA256
+
+SHA256 hash of C:\path\to\your\file.bin:
+7a9c7d3d6a8d8d44f9e5b9a8a6b2f34b98a6c8a89f8e1f7b8a7d3c6a8a1e5b2d
+CertUtil: -hashfile command completed successfully.
+
+Looks to be 64 characters for SHA256 hash ?
+
+*****************************
+A SHA-256 hash is:
+
+256 bits long → that’s 32 bytes.
+
+When expressed as a hex string (the usual way), each byte takes 2 hex characters → 64 characters.
+
+****************************
+
+JAVA CODE
+
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+
+public class FileHashUtil {
+
+    public static String computeSHA256(byte[] data) throws NoSuchAlgorithmException {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        byte[] hashBytes = digest.digest(data);
+
+        // Convert to hex string
+        StringBuilder sb = new StringBuilder();
+        for (byte b : hashBytes) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
+    }
+
+    // Example usage
+    public static void main(String[] args) throws Exception {
+        byte[] fileData = "Hello World".getBytes("UTF-8"); // simulate uploaded file
+        String hash = computeSHA256(fileData);
+        System.out.println("SHA-256: " + hash);
+    }
+}
+
+OR to produce any upper/lower case:
+
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+
+public class FileHashUtil {
+
+    public static String computeSHA256(byte[] data, boolean uppercase) throws NoSuchAlgorithmException {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        byte[] hashBytes = digest.digest(data);
+
+        StringBuilder sb = new StringBuilder();
+        for (byte b : hashBytes) {
+            if (uppercase) {
+                sb.append(String.format("%02X", b)); // uppercase
+            } else {
+                sb.append(String.format("%02x", b)); // lowercase
+            }
+        }
+        return sb.toString();
+    }
+
+    public static void main(String[] args) throws Exception {
+        byte[] fileData = "Hello World".getBytes("UTF-8"); // sample data
+
+        String lower = computeSHA256(fileData, false);
+        String upper = computeSHA256(fileData, true);
+
+        System.out.println("Lowercase SHA-256: " + lower);
+        System.out.println("Uppercase SHA-256: " + upper);
+    }
+}
+
+
+*****************************
+ALTER TABLE person_files ADD (file_hash VARCHAR2(128));
+
+UPDATE person_files f
+SET f.file_hash =
+    RAWTOHEX(DBMS_CRYPTO.HASH(
+        UTL_RAW.CAST_TO_RAW(DBMS_LOB.SUBSTR(f.file_data, 32767, 1)),
+        DBMS_CRYPTO.HASH_SH256
+    ));
+
+*** Oracle Create SHA256Hash for blob ***
+
+-- Add a column to store the hash if not already there
+ALTER TABLE person_files ADD (file_hash VARCHAR2(64));
+
+DECLARE
+    CURSOR c IS
+        SELECT id, file_data
+        FROM person_files
+        WHERE file_data IS NOT NULL;
+
+    l_hash_ctx  PLS_INTEGER;
+    l_raw       RAW(32767);
+    l_position  INTEGER;
+    l_chunk_size CONSTANT INTEGER := 32767; -- maximum RAW size
+    l_hash      RAW(32); -- 32 bytes for SHA-256
+BEGIN
+    FOR r IN c LOOP
+        l_hash_ctx := DBMS_CRYPTO.HASH_START(DBMS_CRYPTO.HASH_SH256);
+
+        l_position := 1;
+        WHILE l_position <= DBMS_LOB.GETLENGTH(r.file_data) LOOP
+            l_raw := DBMS_LOB.SUBSTR(r.file_data, l_chunk_size, l_position);
+            DBMS_CRYPTO.HASH_UPDATE(l_hash_ctx, UTL_RAW.CAST_TO_RAW(l_raw));
+            l_position := l_position + l_chunk_size;
+        END LOOP;
+
+        l_hash := DBMS_CRYPTO.HASH_FINAL(l_hash_ctx);
+
+        UPDATE person_files
+        SET file_hash = RAWTOHEX(l_hash)
+        WHERE id = r.id;
+    END LOOP;
+
+    COMMIT;
+END;
+/
+
+*****************
+The underlying hash value is just raw bytes — it doesn’t have “letters” at all.
+When we display it as a hex string, we have a choice:
+
+Some tools use lowercase hex (7a9c…)
+
+Others use uppercase hex (7A9C…)
+
+Both represent the exact same value. Hex is case-insensitive.
+
+✅ For consistency, most modern tools (Java String.format("%02x"), shasum, openssl, etc.) output lowercase by default.
+✅ Windows certutil outputs uppercase.
+
+So when comparing hashes, you should either:
+
+Normalize both sides (e.g. convert to lowercase before comparing strings), or
+
+Compare raw bytes directly if you have them.
+
+Would you like me to show you how to adjust your Java code so you can easily switch between lowercase and uppercase hex output?
