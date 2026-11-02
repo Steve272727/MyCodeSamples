@@ -37,3 +37,95 @@ ORDER BY
     ad1_0.due_date,
     pc1_0.key
 OFFSET 0 ROWS FETCH FIRST 10 ROWS ONLY --first page of 10
+
+--Analysis:
+
+Seeing your exact query and table sizes makes everything crystal clear. With 1,115,201 rows in t_events, this query is a textbook candidate for severe performance collapse when an index doesn't match the exact shape of the WHERE clause and ORDER BY clause.
+
+Your existing index on person_key alone is not enough because:
+
+The TRUNC() Function Block: The query filters by trunc(ad1_0.due_date, 'DD'). A standard index on due_date (if one existed) or person_key cannot satisfy this function, forcing Oracle to evaluate every row.
+
+The ORDER BY + Pagination Trap: The query sorts by ad1_0.due_date, pc1_0.key and asks for FETCH FIRST 10 ROWS ONLY. Without an index matching that sort order, Oracle has to pull all matching rows, dump them into the TEMP space to sort them (which explains your DBA's report of 42 GB usage), and then pick the first 10.
+
+The Optimal Index Recommendation
+To make this specific query lightning-fast and eliminate the massive TEMP space spikes, you need a Composite Function-Based Index on t_events that matches your WHERE function and your join key.
+
+Ask your DBA to create this exact index:
+CREATE INDEX idx_events_trunc_due_person 
+ON t_events (TRUNC(due_date, 'DD'), person_key);
+
+Why this index fixes the issue completely:
+Matches the TRUNC() Filter: Because the index is built on TRUNC(due_date, 'DD'), Oracle can instantly evaluate the date condition without scanning the table.
+
+Handles the Join: Including person_key as the second column allows Oracle to instantly resolve the join to t_person within the same index lookup.
+
+Eliminates the 42 GB Sort (Crucial for Pagination): Because the index is pre-sorted by date and person key, Oracle doesn't need to sort a million rows in the TEMP tablespace. For your FETCH FIRST 10 ROWS ONLY requirement, Oracle can walk the index, find the first 10 qualifying rows, and return them instantly without touching the rest of the 1.1 million rows.
+
+Next Steps for Your DBA
+Create the Index: Run the DDL statement above.
+
+Gather Table Statistics: Oracle's Cost-Based Optimizer needs updated statistics to recognize the new function-based index:
+
+EXEC DBMS_STATS.GATHER_TABLE_STATS(ownname => 'YOUR_SCHEMA', tabname => 'EVENTS', cascade => TRUE);
+
+Clean Up Redundant Indexes: Once this composite index is active, you can drop the old single-column index on person_key, as this new index completely covers person-only lookups as well.
+
+Should I also index the completed date field as the table has 706,300 completed dates ?
+
+1. The Math of IS NULL
+Out of your 1,115,201 total rows, 706,300 have a completed date. That means roughly 408,901 rows have a NULL value for completed_date (meaning they are incomplete).
+
+That represents about 36% of your entire table. In database optimization, an index is only useful if it helps filter out a large percentage of data (high selectivity). If an index points to more than 10–15% of the table, Oracle's optimizer will completely ignore it and choose a full table scan instead, because reading a third of an index and jumping back to the table is slower than scanning the table sequentially.
+
+2. How the Composite Index Already Handles It
+Your query filters by three main things:
+
+trunc(ad1_0.due_date, 'DD') < ... (Past due dates)
+
+pc1_0.key (Specific person join/filter)
+
+ad1_0.completed_date IS NULL
+
+The composite index (TRUNC(due_date, 'DD'), person_key) handles the heavy lifting of items #1 and #2, instantly narrowing your 1.1 million rows down to a tiny handful of matching records. Once Oracle has that small subset, checking whether completed_date IS NULL takes microseconds in memory.
+
+3. The Write-Performance Penalty
+The completed_date field is transactional—it starts as NULL and gets updated to a timestamp when an event is finished. If you index a column that is frequently updated, Oracle has to constantly rewrite and rebalance the index tree every time an event is completed. This creates unnecessary disk overhead and slows down UPDATE statements across your application.
+
+*********************
+Receommended index
+*********************
+
+CREATE INDEX idx_events_trunc_due_person 
+ON t_events (TRUNC(due_date, 'DD'), person_key);
+
+The DBA might have to run DB status so oracle picks up the index ?
+
+*******************
+Explain plan
+*******************
+EXPLAIN PLAN FOR
+SELECT (Columns ommitted)
+FROM
+    t_events ad1_0
+
+Then run:
+
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
+
+The "Before" Plan (The Problem)
+Look at the Operation column in the output table. On an unindexed table, you will likely see:
+
+TABLE ACCESS FULL against t_events. This means Oracle is reading every single one of those 1.1 million rows off disk.
+
+SORT ORDER BY or HASH JOIN with a high Cost number, showing that Oracle is struggling to sort the rows or match them up in memory/TEMP space.
+
+After the index:
+
+Run the EXPLAIN PLAN and DBMS_XPLAN.DISPLAY again. You should see:
+
+INDEX RANGE SCAN (or INDEX UNIQUE SCAN) pointing directly to idx_events_trunc_due_person.
+
+No TABLE ACCESS FULL on t_events.
+
+The overall Cost metric should drop dramatically, and the sort operation for pagination will be bypassed because the index is already pre-sorted.
