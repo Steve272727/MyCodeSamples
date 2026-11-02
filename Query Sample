@@ -1,0 +1,39 @@
+--Sanitised Sample Query
+
+----Record count:
+--1,115,201 for t_events, 
+--59226 for t_people 
+--59226 for t_names
+
+--Index:
+--t_events only has index on key which it the person key
+
+SELECT (Columns ommitted)
+FROM
+    t_events ad1_0
+    JOIN t_person        pc1_0 ON pc1_0.key = ad1_0.person_key
+    JOIN t_names         pn1_0 ON pc1_0.key = pn1_0.person_key
+    LEFT JOIN t_shared_states sj1_0 ON pc1_0.key = sj1_0.person_key AND ( sj1_0.end_date IS NULL )
+WHERE
+    trunc(ad1_0.due_date, 'DD') < trunc(?, 'DD') --Passes in current data and time as parameter binding parameter (1:TIMESTAMP) <- [2026-05-12 15:10:28.119]
+    AND ad1_0.completed_date IS NULL
+    AND pc1_0.status_type <> 3
+    AND pc1_0.key NOT IN (
+        SELECT
+            s1_0.key
+        FROM
+            t_sus s1_0
+        WHERE
+            s1_0.suspension_type = 'Test'
+            AND s1_0.key = pc1_0.key
+            AND ( s1_0.end_date IS NULL
+                  --OR s1_0.end_date >= ? ) --TODAY
+                  OR s1_0.end_date >= SYSTIMESTAMP ) --TODAY
+    )
+    AND ( pc1_0.owner_id = 1234
+          OR ( sj1_0.state_id = 1234
+               AND sj1_0.end_date IS NULL ) )
+ORDER BY
+    ad1_0.due_date,
+    pc1_0.key
+OFFSET 0 ROWS FETCH FIRST 10 ROWS ONLY --first page of 10
